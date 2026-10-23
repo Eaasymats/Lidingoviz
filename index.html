@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lidingö Solel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky header with tabs → summary strip → one working view per tab (overview, sites, monitoring, API). */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --sunk:#e8ecee; --line:#d5dcdf;
+  --ink:#14232b; --muted:#5a6b73; --faint:#8a989e;
+  --sun:#d98e04; --sun-soft:#fbecc8; --sea:#1d5b73;
+  --ok:#1f7a4d; --ok-soft:#dcefe4; --warn:#a86400; --warn-soft:#fbe9cc; --crit:#b3261e; --crit-soft:#f8dcd9; --info:#33617a; --info-soft:#dde9ef;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171b; --surface:#162227; --sunk:#1c2b31; --line:#2a3b42;
+  --ink:#e6eef1; --muted:#9db0b8; --faint:#6f8289;
+  --sun:#f2b33d; --sun-soft:#3a2d12; --sea:#6fb2cc;
+  --ok:#5cc58f; --ok-soft:#163327; --warn:#f0a94a; --warn-soft:#3a2a12; --crit:#f2867e; --crit-soft:#3d1c1a; --info:#86b9d1; --info-soft:#18303b;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171b; --surface:#162227; --sunk:#1c2b31; --line:#2a3b42;
+  --ink:#e6eef1; --muted:#9db0b8; --faint:#6f8289;
+  --sun:#f2b33d; --sun-soft:#3a2d12; --sea:#6fb2cc;
+  --ok:#5cc58f; --ok-soft:#163327; --warn:#f0a94a; --warn-soft:#3a2a12; --crit:#f2867e; --crit-soft:#3d1c1a; --info:#86b9d1; --info-soft:#18303b;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding-block:14px 0}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-stretch:85%;font-weight:750;font-size:1.45rem;margin:0;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-size:.85rem}
+.demo{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:4px 10px;border-radius:999px}
+nav{display:flex;gap:2px;overflow-x:auto;padding-top:10px}
+nav button{font:inherit;font-weight:500;font-size:.92rem;color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px 10px;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--sun)}
+nav button:hover{color:var(--ink)}
+nav .count{font-family:var(--f-mono);font-size:.75rem;background:var(--crit-soft);color:var(--crit);border-radius:999px;padding:1px 7px;margin-left:6px}
+button:focus-visible,.site:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+main{padding-block:22px 48px;display:grid;gap:22px}
+h2{font-family:var(--f-display);font-stretch:90%;font-weight:700;font-size:1.15rem;margin:0;text-wrap:balance}
+h3{font-size:.95rem;margin:0;font-weight:600}
+.label{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.ph .note{color:var(--muted);font-size:.82rem}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{background:var(--surface);padding:16px 18px;display:grid;gap:4px;min-width:0}
+.kpi .v{font-family:var(--f-display);font-stretch:80%;font-weight:700;font-size:2rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .v small{font-family:var(--f-body);font-size:.9rem;font-weight:500;color:var(--muted);margin-left:4px}
+.kpi .d{font-size:.8rem;color:var(--muted)}
+.kpi.sun .v{color:var(--sun)}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:22px}
+@media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+
+svg text{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.chart{width:100%;height:auto;display:block}
+
+/* bars */
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(0,9.5rem) minmax(0,1fr) 4.6rem;align-items:center;gap:10px;font-size:.85rem}
+.bar .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{display:block;height:12px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar .f{display:block;height:100%;background:var(--sun);border-radius:3px}
+.bar .f.low{background:var(--warn)} .bar .f.off{background:var(--crit)}
+.bar .x{text-align:right}
+
+/* status pills */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.info{background:var(--info-soft);color:var(--info)}
+
+/* site cards */
+.sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.site{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;cursor:pointer;text-align:left;font:inherit;color:inherit;border-top:3px solid var(--ok)}
+.site.warn{border-top-color:var(--warn)} .site.crit{border-top-color:var(--crit)} .site.info{border-top-color:var(--info)}
+.site:hover{border-color:var(--sea)}
+.site .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.site .meta{color:var(--muted);font-size:.8rem}
+.site .pw{display:flex;align-items:baseline;gap:6px}
+.site .pw b{font-family:var(--f-display);font-stretch:80%;font-size:1.6rem;font-weight:700}
+.site .row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)}
+.site .row span:last-child{color:var(--ink)}
+
+/* detail */
+.detail{display:grid;gap:16px}
+.detail .head{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.inv{width:100%;border-collapse:collapse;font-size:.85rem}
+.inv th{text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--line)}
+.inv td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.inv td.num,.inv th.num{text-align:right}
+.scroll{overflow-x:auto}
+.strings{display:flex;gap:4px;flex-wrap:wrap}
+.str{font-family:var(--f-mono);font-size:.72rem;padding:1px 6px;border-radius:4px;background:var(--sunk)}
+.str.bad{background:var(--crit-soft);color:var(--crit)}
+
+/* alarms */
+.alarms{display:grid;gap:10px}
+.alarm{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:start;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);border-left:4px solid var(--warn)}
+.alarm.crit{border-left-color:var(--crit)} .alarm.info{border-left-color:var(--info)}
+.alarm .w{font-weight:600}
+.alarm .why{color:var(--muted);font-size:.85rem;grid-column:2/4}
+.alarm .when{color:var(--faint);font-size:.8rem;white-space:nowrap}
+@media (max-width:560px){.alarm{grid-template-columns:minmax(0,1fr)}.alarm .why{grid-column:auto}}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.rule{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:6px;background:var(--surface)}
+.rule p{margin:0;font-size:.85rem;color:var(--muted)}
+.rule code,.api code{font-family:var(--f-mono);font-size:.78rem;background:var(--sunk);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.src{font-size:.72rem;color:var(--faint)}
+
+/* api */
+.api{display:grid;gap:22px}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+.node{flex:1 1 150px;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface);display:grid;gap:4px;min-width:0}
+.node.new{border-style:dashed;border-color:var(--sun);background:var(--sun-soft)}
+.node p{margin:0;font-size:.8rem;color:var(--muted)}
+.arrow{align-self:center;color:var(--faint);font-family:var(--f-mono)}
+@media (max-width:700px){.arrow{display:none}}
+.ep{display:grid;grid-template-columns:4.2rem minmax(0,1fr);gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+.ep:last-child{border-bottom:0}
+.verb{font-family:var(--f-mono);font-size:.75rem;font-weight:500;padding:2px 0;text-align:center;border-radius:4px;background:var(--info-soft);color:var(--info);align-self:start}
+.verb.post{background:var(--sun-soft);color:var(--warn)}
+.ep .path{font-family:var(--f-mono);font-size:.82rem;overflow-wrap:anywhere}
+.ep .desc{grid-column:2;color:var(--muted)}
+.codes{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 18px;font-size:.82rem}
+.codes div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dotted var(--line)}
+.codes code{background:none;padding:0}
+.codes span{color:var(--muted);text-align:right}
+.gaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.gap{padding:12px 14px;border-radius:8px;background:var(--sunk);font-size:.86rem}
+.gap b{display:block;margin-bottom:2px}
+p.lead{margin:0;color:var(--muted);max-width:68ch}
+footer{color:var(--faint);font-size:.8rem;padding-block:0 32px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand"><h1>Lidingö Solel</h1><span class="sub">Lidingö stads solcellsanläggningar · 13 platser · 33 växelriktare</span></div>
+      <span class="demo" title="Siffrorna är påhittade tills insamlaren får API-nyckel">Demodata</span>
+    </div>
+    <nav role="tablist" id="tabs">
+      <button role="tab" data-tab="oversikt" aria-selected="true">Översikt</button>
+      <button role="tab" data-tab="anlaggningar" aria-selected="false">Anläggningar</button>
+      <button role="tab" data-tab="overvakning" aria-selected="false">Övervakning<span class="count" id="alarmCount">0</span></button>
+      <button role="tab" data-tab="api" aria-selected="false">Vad API:et ger</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<main>
+  <section class="kpis" aria-label="Sammanfattning">
+    <div class="kpi sun"><span class="label">Effekt just nu</span><span class="v num" id="kNow">–</span><span class="d" id="kNowD"></span></div>
+    <div class="kpi"><span class="label">Producerat idag</span><span class="v num" id="kToday">–</span><span class="d">SIProducedEnergyToday, summerat</span></div>
+    <div class="kpi"><span class="label">Producerat i år</span><span class="v num" id="kYear">–</span><span class="d" id="kYearD"></span></div>
+    <div class="kpi"><span class="label">Anläggningar i drift</span><span class="v num" id="kUp">–</span><span class="d" id="kUpD"></span></div>
+  </section>
+
+  <!-- ÖVERSIKT -->
+  <section data-view="oversikt" class="grid2">
+    <div class="panel">
+      <div class="ph"><h2>Effekt idag, alla anläggningar</h2><span class="note" id="dayNote"></span></div>
+      <svg class="chart" id="dayChart" viewBox="0 0 640 260" role="img" aria-label="Total effekt under dagen"></svg>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Specifik produktion idag</h2><span class="note">kWh per kWp</span></div>
+      <div class="bars" id="specBars"></div>
+    </div>
+    <div class="panel" style="grid-column:1/-1">
+      <div class="ph"><h2>Senaste händelser</h2><button class="pill info" style="border:0;cursor:pointer;font:inherit;font-size:.75rem;font-weight:600" data-goto="overvakning">Alla larm →</button></div>
+      <div class="alarms" id="alarmsTop"></div>
+    </div>
+  </section>
+
+  <!-- ANLÄGGNINGAR -->
+  <section data-view="anlaggningar" hidden>
+    <div class="detail panel" id="detail" hidden></div>
+    <div class="sites" id="sites" style="margin-top:0"></div>
+  </section>
+
+  <!-- ÖVERVAKNING -->
+  <section data-view="overvakning" hidden style="display:grid;gap:22px">
+    <div class="panel">
+      <div class="ph"><h2>Aktiva larm</h2><span class="note">Kontrolleras vid varje insamling (var 5:e minut)</span></div>
+      <div class="alarms" id="alarmsAll"></div>
+    </div>
+    <div>
+      <div class="ph"><h2>Övervakningsregler</h2><span class="note">Det vi lägger till ovanpå API:et</span></div>
+      <div class="rules" id="rules"></div>
+    </div>
+  </section>
+
+  <!-- API -->
+  <section data-view="api" hidden class="api">
+    <div class="panel">
+      <div class="ph"><h2>Så hänger det ihop</h2></div>
+      <div class="flow">
+        <div class="node"><span class="label">På plats</span><h3>Växelriktare &amp; elmätare</h3><p>Huawei, Sungrow, SAJ. Modbus / M-Bus till DUC.</p></div>
+        <span class="arrow">→</span>
+        <div class="node"><span class="label">Gateway</span><h3>MIVO Connect 002518</h3><p>Läser givarna och exponerar dem i MIVO API v1.</p></div>
+        <span class="arrow">→</span>
+        <div class="node new"><span class="label">Nytt</span><h3>Insamlare</h3><p>Hämtar alla givare var 5:e min, sparar historik, kör larmregler.</p></div>
+        <span class="arrow">→</span>
+        <div class="node new"><span class="label">Nytt</span><h3>Supabase + denna vy</h3><p>Historik, larm och publik sida för kunden.</p></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph"><h2>Endpoints</h2><span class="note">MIVO API v1 · OAuth 2.0 client credentials (private_key_jwt)</span></div>
+      <div class="ep"><span class="verb">GET</span><span class="path">/api/MivoAPI/v1/ListActiveSensors</span><span class="desc">Alla licensierade givare: UID, typ (t.ex. 45 Solar inverter, 2 Electricity), protokoll, namn, mätarnummer, kommentar.</span></div>
+      <div class="ep"><span class="verb post">POST</span><span class="path">/api/MivoAPI/v1/ReadSensor/{uid}</span><span class="desc">Momentan avläsning: ResultCode, ReadingTimestamp, statuskoder och en lista värden (Code, Value, Writeable).</span></div>
+      <div class="ep"><span class="verb post">POST</span><span class="path">/api/MivoAPI/v1/WriteValues</span><span class="desc">Skriver värden till givare. Används inte här; kundvyn är bara läsande.</span></div>
+      <div class="ep"><span class="verb post">POST</span><span class="path">/api/token</span><span class="desc">Ger en Bearer-token. Klienten signerar en JWT med sin privata nyckel, aud = mivoconnect-{serienummer}.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="ph"><h2>Solelsvärden som API:et kan leverera</h2><span class="note">Urval av 461 värdekoder</span></div>
+      <div class="codes" id="codes"></div>
+    </div>
+
+    <div>
+      <div class="ph"><h2>Det API:et inte ger, och hur vi löser det</h2></div>
+      <div class="gaps">
+        <div class="gap"><b>Ingen historik</b>API:et ger bara nuvärden. Insamlaren sparar varje avläsning, så kurvor och dygns-, månads- och årsstatistik byggs upp från dag ett.</div>
+        <div class="gap"><b>Ingen enhet på värdena</b>Värdena saknar enhet (bara omappade värden har det). Enheten sätts per värdekod i insamlaren och verifieras mot första riktiga avläsningen.</div>
+        <div class="gap"><b>Ingen anläggningsdata</b>Installerad effekt (kWp), adress och vilken givare som hör till vilken plats finns inte. Det läggs i en konfigurationsfil, och tabellen från 2026-02-02 är startpunkten.</div>
+        <div class="gap"><b>Inga larm</b>API:et rapporterar fel per givare men larmar inte. Reglerna under Övervakning körs vid varje insamling och kan skicka e-post.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="wrap" style="padding-left:0;padding-right:0">Prototyp med påhittade värden. Anläggningslistan kommer från Lidingö stads sammanställning 2026-02-02; kWp är uppskattade. Riktiga värden ersätter demodatan när insamlaren är igång.</footer>
+</div>
+
+<script>
+(function(){
+// ---------- demo data ----------
+const SITES=[
+ {id:"sigge",name:"Siggebogården",vr:2,mfr:"Huawei",kwp:30,place:"Vid extern elmätare produktion",solarlog:false},
+ {id:"exakt",name:"Exakt Arena (fd. Childhood)",vr:2,mfr:"Huawei",kwp:60,place:"Vid extern elmätare produktion",solarlog:false},
+ {id:"hersby",name:"Hersby skola matsal",vr:1,mfr:"Huawei",kwp:20,place:"Vid extern elmätare produktion",solarlog:true},
+ {id:"kallangen",name:"Källängen skola",vr:1,mfr:"Sungrow",kwp:25,place:"Apparatskåp DUC Gymnastikhallen",solarlog:false},
+ {id:"gangsatra",name:"Gångsätrahallen",vr:1,mfr:"Sungrow",kwp:30,place:"Apparatskåp DUC fläktrum",solarlog:false},
+ {id:"kappala",name:"Käppala skola",vr:4,mfr:"SAJ",kwp:100,place:"Apparatskåp DUC UC fjärrvärme",solarlog:false},
+ {id:"kappalaf",name:"Käppala förskola",vr:2,mfr:"SAJ",kwp:30,place:"Apparatskåp DUC fläktrum",solarlog:false},
+ {id:"torsvik",name:"Torsviks idrottshall",vr:4,mfr:"SAJ",kwp:120,place:"Apparatskåp DUC fläktrum",solarlog:false},
+ {id:"torsvikf",name:"Torsviks förskola",vr:2,mfr:"SAJ",kwp:30,place:"Apparatskåp DUC UC fjärrvärme",solarlog:false},
+ {id:"rudboda",name:"Rudboda skola",vr:2,mfr:"Huawei",kwp:50,place:"Vid extern elmätare produktion",solarlog:true},
+ {id:"simhall",name:"Nya Simhallen Dalenium",vr:1,mfr:"Sungrow",kwp:40,place:"Apparatskåp DUC fläktrum",solarlog:false},
+ {id:"stadshus",name:"Stadshuset",vr:3,mfr:"Okänd",kwp:60,place:"Ej angiven",solarlog:false},
+ {id:"hogsatra",name:"Högsätra skola",vr:3,mfr:"Okänd",kwp:70,place:"Ej angiven",solarlog:false}
+];
+// Alarms (demo). sev: crit|warn|info
+const ALARMS=[
+ {site:"rudboda",sev:"crit",what:"Ingen kontakt med växelriktare VR2",why:"ReadSensor svarar ResultCode 1 (Timeout). Senaste lyckade avläsning 13:12, för 2 h 15 min sedan.",when:"13:27",rule:"comm"},
+ {site:"kappala",sev:"warn",what:"Sträng PV3 ger 0 A på VR3",why:"SIPV3Current = 0,0 A medan övriga strängar på samma växelriktare ger normal ström. Trolig orsak: säkring, kontakt eller skuggning.",when:"10:40",rule:"string"},
+ {site:"torsvik",sev:"warn",what:"Låg produktion jämfört med övriga",why:"PERF",when:"15:00",rule:"perf"},
+ {site:"gangsatra",sev:"warn",what:"Hög växelriktartemperatur",why:"SIInverterTemp 71 °C, gräns 70 °C. Kontrollera ventilation i fläktrummet.",when:"13:55",rule:"temp"},
+ {site:"stadshus",sev:"info",what:"Saknar anläggningsdata",why:"Placering och fabrikat saknas i sammanställningen. kWp är uppskattat, så specifik produktion är osäker.",when:"–",rule:"meta"}
+];
+const RULES=[
+ {sev:"crit",t:"Ingen kontakt",p:"Avläsningen misslyckas (ResultCode ≠ 0) eller ReadingTimestamp är äldre än 30 min.",src:"ResultCode, ReadingTimestamp"},
+ {sev:"crit",t:"Växelriktarfel",p:"Växelriktaren rapporterar en felkod eller ett status som inte är drift.",src:"SIFaultMaincode, SIFaultSubcode, SIStatus"},
+ {sev:"crit",t:"Står still i dagsljus",p:"0 W när solen står över 10° och andra anläggningar producerar mer än 10 % av sin kWp.",src:"SIOutputPower + solposition"},
+ {sev:"warn",t:"Strängfel",p:"En sträng ger under 10 % av medelströmmen för övriga strängar på samma växelriktare.",src:"SIPVnCurrent, SIPVnVoltage"},
+ {sev:"warn",t:"Låg prestanda",p:"Specifik produktion (kWh/kWp) under 60 % av medianen för alla anläggningar, tre dagar i rad.",src:"SIProducedEnergyToday + kWp"},
+ {sev:"warn",t:"Hög temperatur",p:"Växelriktarens temperatur över 70 °C.",src:"SIInverterTemp"},
+ {sev:"warn",t:"Nätspänning eller frekvens",p:"Fasspänning utanför 207–253 V eller frekvens utanför 49,5–50,5 Hz.",src:"SIGridVoltageLxtoN, SIGridFrequency"},
+ {sev:"warn",t:"Mätaren står still",p:"Totalräknaren ökar inte under en dag med produktion hos övriga.",src:"SIProducedEnergyTotal / ElectricityExportedActiveEnergyTotal"},
+ {sev:"info",t:"Givarstatus",p:"Givaren skickar egna statuskoder, t.ex. SensorError eller LowBatteryAlarm.",src:"SensorStatusCodes"}
+];
+const CODES=[
+ ["SIOutputPower","Uteffekt (W)"],["SIISolarPower","DC-effekt från panelerna"],["SIProducedEnergyToday","Energi idag (kWh)"],["SIProducedEnergyTotal","Energi totalt (kWh)"],
+ ["SIPV1…12Current / Voltage / Power","Per MPPT-ingång"],["SIPVnString1/2Current","Per sträng"],["SIStatus","Driftstatus"],["SIFaultMaincode / Subcode","Felkoder"],
+ ["SIInverterTemp","Växelriktarens temperatur"],["SIGridVoltageL1toN…L3toN","Nätspänning per fas"],["SIGridOutputCurrentL1…L3","Ström per fas"],["SIGridFrequency","Nätfrekvens"],
+ ["SIOutputPowerFactor","Effektfaktor"],["ElectricityActivePowerTotal","Effekt, extern elmätare"],["ElectricityExportedActiveEnergyTotal","Exporterad energi, elmätare"],["ElectricityImportedActiveEnergyTotal","Importerad energi, elmätare"]
+];
+
+// Simple irradiance model for Lidingö 23 Oct: sunrise ~07:45, sunset ~17:05, partly cloudy.
+const NOW_MIN=15*60+25;
+const SR=7*60+45, SS=17*60+5;
+function clear(m){ if(m<=SR||m>=SS) return 0; const x=(m-SR)/(SS-SR); return Math.pow(Math.sin(Math.PI*x),1.6)*0.36; }
+function cloud(m){ return 0.72+0.2*Math.sin(m/37)+0.08*Math.sin(m/11); }
+const perf={sigge:1.0,exakt:.97,hersby:1.03,kallangen:.95,gangsatra:.9,kappala:.86,kappalaf:1.01,torsvik:.53,torsvikf:.99,rudboda:1.0,simhall:.96,stadshus:.92,hogsatra:1.02};
+function sitePower(s,m){ if(s.id==="rudboda"&&m>13*60+12) return null; return s.kwp*clear(m)*cloud(m)*perf[s.id]; } // kW
+const STEP=5, times=[]; for(let m=6*60;m<=19*60;m+=STEP) times.push(m);
+const series=times.map(m=>m>NOW_MIN?null:SITES.reduce((a,s)=>a+(sitePower(s,m)||0),0));
+SITES.forEach(s=>{
+  let e=0; for(const m of times){ if(m>NOW_MIN) break; const p=sitePower(s,m); if(p) e+=p*STEP/60; }
+  s.today=e; s.spec=e/s.kwp;
+  const p=sitePower(s,NOW_MIN); s.now=p; s.status=(ALARMS.find(a=>a.site===s.id)||{}).sev||"ok";
+  s.year=s.kwp*({torsvik:.55,kappala:.88}[s.id]||0.93)*780; // kWh hittills i år
+  s.last= s.id==="rudboda" ? "13:12" : "15:25";
+});
+
+{const sp=SITES.map(x=>x.spec).sort((a,b)=>a-b), med=sp[Math.floor(sp.length/2)], t=SITES.find(x=>x.id==="torsvik");
+ ALARMS.find(x=>x.rule==="perf").why=`${t.spec.toFixed(2).replace(".",",")} kWh/kWp idag mot median ${med.toFixed(2).replace(".",",")} för alla anläggningar (${Math.round(t.spec/med*100)} %). Har legat under 60 % i tre dagar.`;}
+// ---------- helpers ----------
+const $=s=>document.querySelector(s);
+const fmt=(v,d=1)=>v==null?"–":v.toLocaleString("sv-SE",{minimumFractionDigits:d,maximumFractionDigits:d});
+const hhmm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+const SEVTXT={ok:"I drift",warn:"Varning",crit:"Larm",info:"Info"};
+const byId=Object.fromEntries(SITES.map(s=>[s.id,s]));
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+// ---------- KPIs ----------
+const totNow=SITES.reduce((a,s)=>a+(s.now||0),0), totKwp=SITES.reduce((a,s)=>a+s.kwp,0);
+$("#kNow").innerHTML=fmt(totNow)+"<small>kW</small>";
+$("#kNowD").textContent=`${Math.round(totNow/totKwp*100)} % av ${totKwp} kWp · ${hhmm(NOW_MIN)}`;
+$("#kToday").innerHTML=fmt(SITES.reduce((a,s)=>a+s.today,0),0)+"<small>kWh</small>";
+const yr=SITES.reduce((a,s)=>a+s.year,0);
+$("#kYear").innerHTML=fmt(yr/1000,1)+"<small>MWh</small>";
+$("#kYearD").textContent=`≈ ${fmt(yr*0.04/1000,1)} ton CO₂ undviket (40 g/kWh, nordisk mix)`;
+const up=SITES.filter(s=>s.status!=="crit").length;
+$("#kUp").innerHTML=`${up}<small>av ${SITES.length}</small>`;
+$("#kUpD").textContent=`${ALARMS.filter(a=>a.sev==="crit").length} larm · ${ALARMS.filter(a=>a.sev==="warn").length} varningar`;
+$("#alarmCount").textContent=ALARMS.filter(a=>a.sev!=="info").length;
+
+// ---------- day chart ----------
+(function(){
+  const W=640,H=260,L=44,R=12,T=26,B=28, svg=$("#dayChart");
+  const x=m=>L+(m-times[0])/(times[times.length-1]-times[0])*(W-L-R);
+  const peak=Math.max(...series.filter(v=>v!=null)), step=[10,20,25,50,100,200][[10,20,25,50,100,200].findIndex(st=>st*4>=peak)]||250, max=step*4;
+  const y=v=>T+(1-v/max)*(H-T-B);
+  let g="";
+  for(let v=0;v<=max;v+=step){ g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`; }
+  for(let h=6;h<=19;h+=2){ g+=`<text x="${x(h*60)}" y="${H-8}" text-anchor="middle">${String(h).padStart(2,"0")}</text>`; }
+  g+=`<text x="${L-6}" y="${T-14}" text-anchor="end">kW</text>`;
+  const pts=times.map((m,i)=>series[i]==null?null:[x(m),y(series[i])]).filter(Boolean);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const area=line+`L${pts[pts.length-1][0].toFixed(1)} ${y(0)}L${pts[0][0].toFixed(1)} ${y(0)}Z`;
+  // clear-sky reference
+  const ref=times.map(m=>[x(m),y(SITES.reduce((a,s)=>a+s.kwp,0)*clear(m))]).map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const last=pts[pts.length-1];
+  g+=`<path d="${ref}" fill="none" stroke="var(--faint)" stroke-width="1.2" stroke-dasharray="3 4"/>`;
+  g+=`<path d="${area}" fill="var(--sun)" fill-opacity=".18"/><path d="${line}" fill="none" stroke="var(--sun)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  g+=`<line x1="${x(NOW_MIN)}" x2="${x(NOW_MIN)}" y1="${T}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3"/>`;
+  g+=`<circle cx="${last[0]}" cy="${last[1]}" r="4.5" fill="var(--sun)" stroke="var(--surface)" stroke-width="2"/>`;
+  g+=`<text x="${x(SR)+4}" y="${y(0)-6}">↑ ${hhmm(SR)}</text><text x="${x(SS)-4}" y="${y(0)-6}" text-anchor="end">${hhmm(SS)} ↓</text>`;
+  svg.innerHTML=g;
+  $("#dayNote").textContent="Streckad: förväntad vid klar himmel";
+})();
+
+// ---------- specific yield bars ----------
+(function(){
+  const arr=[...SITES].sort((a,b)=>b.spec-a.spec), max=Math.max(...arr.map(s=>s.spec));
+  const med=[...arr].map(s=>s.spec).sort((a,b)=>a-b)[Math.floor(arr.length/2)];
+  $("#specBars").innerHTML=arr.map(s=>{
+    const cls=s.status==="crit"?"off":(s.spec<med*.6?"low":"");
+    return `<div class="bar"><span class="n" title="${esc(s.name)}">${esc(s.name)}</span><span class="t"><span class="f ${cls}" style="width:${(s.spec/max*100).toFixed(1)}%"></span></span><span class="x num">${fmt(s.spec,2)}</span></div>`;
+  }).join("");
+})();
+
+// ---------- alarms ----------
+function alarmHTML(a){ const s=byId[a.site]; return `<div class="alarm ${a.sev}"><span class="pill ${a.sev}">${SEVTXT[a.sev]}</span><span class="w">${esc(s.name)}: ${esc(a.what)}</span><span class="when">${a.when}</span><span class="why">${esc(a.why)}</span></div>`; }
+const order={crit:0,warn:1,info:2};
+const sorted=[...ALARMS].sort((a,b)=>order[a.sev]-order[b.sev]);
+$("#alarmsTop").innerHTML=sorted.slice(0,3).map(alarmHTML).join("");
+$("#alarmsAll").innerHTML=sorted.map(alarmHTML).join("");
+$("#rules").innerHTML=RULES.map(r=>`<div class="rule"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3>${r.t}</h3><span class="pill ${r.sev}">${SEVTXT[r.sev]}</span></div><p>${r.p}</p><span class="src">Från API: <code>${r.src}</code></span></div>`).join("");
+$("#codes").innerHTML=CODES.map(c=>`<div><code>${c[0]}</code><span>${c[1]}</span></div>`).join("");
+
+// ---------- sites ----------
+function siteCard(s){
+  return `<button class="site ${s.status==="ok"?"":s.status}" data-site="${s.id}">
+    <div class="top"><div><h3>${esc(s.name)}</h3><div class="meta">${s.vr} VR · ${s.mfr} · ${s.kwp} kWp*</div></div><span class="pill ${s.status}">${SEVTXT[s.status]}</span></div>
+    <div class="pw"><b class="num">${s.now==null?"–":fmt(s.now)}</b><span class="meta">kW nu</span></div>
+    <div class="row"><span>Idag</span><span class="num">${fmt(s.today,0)} kWh</span></div>
+    <div class="row"><span>Specifik idag</span><span class="num">${fmt(s.spec,2)} kWh/kWp</span></div>
+    <div class="row"><span>Senaste avläsning</span><span class="num">${s.last}</span></div>
+  </button>`;
+}
+$("#sites").innerHTML=SITES.map(siteCard).join("");
+function inverterRows(s){
+  let rows="";
+  for(let i=1;i<=s.vr;i++){
+    const share=s.now==null?null:s.now/s.vr*(1+0.04*Math.sin(i*3));
+    const dead=(s.id==="rudboda"&&i===2);
+    const nStr=s.vr>=4?4:2;
+    let strs="";
+    for(let k=1;k<=nStr;k++){ const bad=(s.id==="kappala"&&i===3&&k===3); const a=bad?0:(share||0)*1000/ (nStr*560); strs+=`<span class="str ${bad?"bad":""}">PV${k} ${fmt(a,1)} A</span>`; }
+    const temp=s.id==="gangsatra"?71:38+((i*7)%9);
+    rows+=`<tr><td>VR${i}</td><td>${dead?'<span class="pill crit">Ingen kontakt</span>':'<span class="pill ok">Drift</span>'}</td><td class="num">${dead||share==null?"–":fmt(share,1)}</td><td class="num">${dead?"–":temp+" °C"}</td><td class="num">${dead?"–":fmt(229+i*.7,1)} V</td><td><div class="strings">${dead?"–":strs}</div></td></tr>`;
+  }
+  return rows;
+}
+function showSite(id){
+  const s=byId[id], d=$("#detail"); if(!s){d.hidden=true;return;}
+  const al=ALARMS.filter(a=>a.site===id);
+  d.innerHTML=`<div class="head"><h2>${esc(s.name)}</h2><span class="pill ${s.status}">${SEVTXT[s.status]}</span><span class="meta" style="color:var(--muted);font-size:.85rem">${esc(s.place)} · ${s.mfr}${s.solarlog?" · även Solar-Log":""}</span><button class="pill info" style="margin-left:auto;border:0;cursor:pointer;font:inherit;font-size:.75rem;font-weight:600" id="closeDetail">Stäng</button></div>
+  ${al.length?`<div class="alarms">${al.map(alarmHTML).join("")}</div>`:""}
+  <div class="scroll"><table class="inv"><thead><tr><th>Växelriktare</th><th>Status</th><th class="num">kW</th><th class="num">Temp</th><th class="num">L1-N</th><th>Strängar</th></tr></thead><tbody>${inverterRows(s)}</tbody></table></div>`;
+  d.hidden=false; $("#closeDetail").onclick=()=>{d.hidden=true;};
+  d.scrollIntoView({block:"nearest"});
+}
+$("#sites").addEventListener("click",e=>{const b=e.target.closest("[data-site]"); if(b) showSite(b.dataset.site);});
+
+// ---------- tabs ----------
+const tabs=[...document.querySelectorAll("#tabs button")];
+function go(t){
+  if(!tabs.some(b=>b.dataset.tab===t)) t="oversikt";
+  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  document.querySelectorAll("[data-view]").forEach(v=>v.hidden=v.dataset.view!==t);
+  try{localStorage.setItem("tab",t)}catch(e){}
+}
+tabs.forEach(b=>b.addEventListener("click",()=>go(b.dataset.tab)));
+document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.goto)));
+let start=(location.hash||"").slice(1); if(!start){try{start=localStorage.getItem("tab")||""}catch(e){}}
+go(start||"oversikt");
+})();
+</script>
+</body>
+</html>
